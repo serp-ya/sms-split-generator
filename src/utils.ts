@@ -1,3 +1,5 @@
+import { SUFFIX_DELIMETER } from './constants';
+
 /**
  * Функция createSuffix создаёт суфикс вида 1/10 
  * 
@@ -8,7 +10,7 @@
  const createSuffix = (
     currentNumber: number,
     lastNumber: number,
-  ): string => `${currentNumber}/${lastNumber}`;
+  ): string => `${currentNumber}${SUFFIX_DELIMETER}${lastNumber}`;
   
   /**
    * Функция mapChunksWithSuffix проставляет суфиксы переданным чанкам
@@ -19,7 +21,7 @@
    */
   export const mapChunksWithSuffix = (chunks: string[], delimeter: string): string[] => (
     chunks.map((chunk: string, i: number, arr: string[]): string => (
-      [chunk, createSuffix(i + 1, arr.length)].join()
+      [chunk, createSuffix(i + 1, arr.length)].join(delimeter)
     ))
   );
   
@@ -65,31 +67,77 @@
     chunks: string[],
     delimeter: string,
     chunkMaxLength: number,
-  ): string[] => chunks.reduce((
-    acc: string[],
-    chunk: string,
-    i: number,
-    arr: string[],
-  ) => {
-    const suffix: string = createSuffix(i + 1, arr.length);
-    const chunkWithSuffix: string = [chunk, suffix].join(delimeter);
-  
-  
-    if (chunkWithSuffix.length > chunkMaxLength) {
-      const currentChunkAllWords: string[] = chunk.split(delimeter);
-      const currentChunkWithoutLastWord: string[] = (
-        currentChunkAllWords.slice(0, currentChunkAllWords.length - 1)
-      );
-      const currentChunkLastWord: string[] = currentChunkAllWords.slice(-1);
-      const nextChunk = arr[i + 1] || '';
-  
-      acc.push(currentChunkWithoutLastWord.join(delimeter));
-      arr[i + 1] = [currentChunkLastWord, nextChunk].join(delimeter);
-  
-    } else {
-      acc.push(chunk);
-    }
+  ): string[] => {
+    let needToRevalidateChunks = false;
+
+    const result = chunks.reduce((
+      acc: string[],
+      chunk: string,
+      i: number,
+      arr: string[],
+    ) => {
+      const suffix: string = createSuffix(i + 1, arr.length);
+      const chunkWithSuffix: string = [chunk, suffix].join(delimeter);
     
-    return acc;
+      if (chunkWithSuffix.length > chunkMaxLength) {
+        const currentChunkAllWords: string[] = chunk.split(delimeter);
+
+        const [optimizedCurrentChunk, replacedChunk] = currentChunkAllWords.reduce((
+          optimizedChunks: [string, string],
+          word: string,
+        ) => {
+          const [currentChunk, cuttedChunk] = optimizedChunks;
+          const updatedCurrentChunk = Boolean(currentChunk) 
+            ? [currentChunk, word].join(delimeter)
+            : word;
+          const updatedCurrentChunkWithSuffix = [updatedCurrentChunk, suffix].join(delimeter);
+
+          if (updatedCurrentChunkWithSuffix.length < chunkMaxLength) {
+            optimizedChunks[0] = updatedCurrentChunk;
+          } else {
+            optimizedChunks[1] = Boolean(cuttedChunk)
+              ? [cuttedChunk, word].join(delimeter)
+              : word;
+          }
+
+          return optimizedChunks;
+        }, ['', '']);
+
+        const nextChunk = arr[i + 1] || '';
+        acc.push(optimizedCurrentChunk);
+        arr[i + 1] = [replacedChunk, nextChunk].join(delimeter);
+
+        needToRevalidateChunks = true;
+
+      } else {
+        acc.push(chunk);
+      }
+      
+      return acc;
+    }, []);
+
+    return needToRevalidateChunks
+      ? optimizeChunksLength(result, delimeter, chunkMaxLength)
+      : result;
+  };
   
-  }, []);
+
+/**
+ * Функция getDefaultSMS проверит по определенным правилам, можно ли преобразовать
+ * входящий текст в "СМС по-умолчанию". Если да, вернёт это СМС
+ * 
+ * @param text - входящий текст
+ * @param delimeter - разделитель между слов во входящем тексте
+ * @param messageMaxLenght - максимальная длина одной СМС
+ * @returns - либо вернёт "СМС по-умолчанию", либо ничего не вернёт,
+ * если текст корректный, но "СМС по-умолчанию" не соответствует
+ * определенным правилам
+ */
+export const getDefaultSMS = (
+    text: string,
+    messageMaxLenght: number,
+): string[] | undefined => {
+    if (text.length <= messageMaxLenght) {
+      return [text];
+    }
+};

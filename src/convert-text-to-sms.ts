@@ -1,4 +1,10 @@
-import { joinWordsToChunks, mapChunksWithSuffix, optimizeChunksLength } from './utils';
+import {
+    checkIsIncomingTextIsCorrect,
+    getDefaultSMS,
+    joinWordsToChunks,
+    mapChunksWithSuffix,
+    optimizeChunksLength,
+} from './utils';
 import { DELIMETER, MESSAGE_LENGTH } from './constants';
 import type { TConvertTextToSms } from './types';
 
@@ -16,8 +22,10 @@ import type { TConvertTextToSms } from './types';
     delimeter: string = DELIMETER,
     messageMaxLenght: number = MESSAGE_LENGTH,
   ): string[] => {
-    if (text.length <= messageMaxLenght) {
-      return [text];
+    const defaultSMS = getDefaultSMS(text, messageMaxLenght);
+
+    if (defaultSMS) {
+      return defaultSMS;
     }
   
     const words: string[] = text.split(delimeter);
