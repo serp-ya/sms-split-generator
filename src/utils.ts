@@ -68,53 +68,50 @@ import { SUFFIX_DELIMETER } from './constants';
     delimeter: string,
     chunkMaxLength: number,
   ): string[] => {
+    const result: string[] = [];
+
     let needToRevalidateChunks = false;
+    let i = 0;
 
-    const result = chunks.reduce((
-      acc: string[],
-      chunk: string,
-      i: number,
-      arr: string[],
-    ) => {
-      const suffix: string = createSuffix(i + 1, arr.length);
+    while(chunks[i]) {
+      const chunk = chunks[i];
+      const suffix: string = createSuffix(i + 1, chunks.length);
       const chunkWithSuffix: string = [chunk, suffix].join(delimeter);
-    
-      if (chunkWithSuffix.length > chunkMaxLength) {
-        const currentChunkAllWords: string[] = chunk.split(delimeter);
 
-        const [optimizedCurrentChunk, replacedChunk] = currentChunkAllWords.reduce((
-          optimizedChunks: [string, string],
-          word: string,
-        ) => {
-          const [currentChunk, cuttedChunk] = optimizedChunks;
-          const updatedCurrentChunk = Boolean(currentChunk) 
-            ? [currentChunk, word].join(delimeter)
+      if (chunkWithSuffix.length <= chunkMaxLength) {
+        result.push(chunk);
+      } else {
+        const currentChunkAllWords: string[] = chunk.split(delimeter);
+        let optimizedCurrentChunk = '';
+        let cuttedChunk = '';
+        let c = 0;
+
+        while(currentChunkAllWords[c]) {
+          const word = currentChunkAllWords[c];
+          const updatedCurrentChunk = Boolean(optimizedCurrentChunk) 
+            ? [optimizedCurrentChunk, word].join(delimeter)
             : word;
           const updatedCurrentChunkWithSuffix = [updatedCurrentChunk, suffix].join(delimeter);
-
-          if (updatedCurrentChunkWithSuffix.length < chunkMaxLength) {
-            optimizedChunks[0] = updatedCurrentChunk;
+          
+          if (!cuttedChunk && updatedCurrentChunkWithSuffix.length <= chunkMaxLength) {
+            optimizedCurrentChunk = updatedCurrentChunk;
           } else {
-            optimizedChunks[1] = Boolean(cuttedChunk)
+            cuttedChunk = Boolean(cuttedChunk)
               ? [cuttedChunk, word].join(delimeter)
               : word;
           }
+          c++;
+        }
 
-          return optimizedChunks;
-        }, ['', '']);
-
-        const nextChunk = arr[i + 1] || '';
-        acc.push(optimizedCurrentChunk);
-        arr[i + 1] = [replacedChunk, nextChunk].join(delimeter);
+        const nextChunk = chunks[i + 1] || '';
+        result.push(optimizedCurrentChunk);
+        chunks[i + 1] = [cuttedChunk, nextChunk].join(delimeter);
 
         needToRevalidateChunks = true;
-
-      } else {
-        acc.push(chunk);
       }
-      
-      return acc;
-    }, []);
+
+      i++;
+    }
 
     return needToRevalidateChunks
       ? optimizeChunksLength(result, delimeter, chunkMaxLength)

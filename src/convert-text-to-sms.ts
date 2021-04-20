@@ -1,5 +1,4 @@
 import {
-    checkIsIncomingTextIsCorrect,
     getDefaultSMS,
     joinWordsToChunks,
     mapChunksWithSuffix,
